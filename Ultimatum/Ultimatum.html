@@ -1,0 +1,1166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Chrono Vanguard</title>
+
+<style>
+* {
+    box-sizing: border-box;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+body {
+    margin: 0;
+    overflow: hidden;
+    background: #090b16;
+    color: white;
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+#game {
+    display: block;
+    width: 100vw;
+    height: 100vh;
+    background: #11182b;
+}
+
+#hud {
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    right: 12px;
+    z-index: 5;
+    pointer-events: none;
+    text-shadow: 2px 2px #000;
+}
+
+.row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.stat {
+    min-width: 150px;
+}
+
+.bar {
+    height: 12px;
+    border: 2px solid #fff;
+    background: #222;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.fill {
+    height: 100%;
+    width: 100%;
+    transition: width .15s;
+}
+
+#healthFill {
+    background: linear-gradient(90deg, #e22, #ff7373);
+}
+
+#staminaFill {
+    background: linear-gradient(90deg, #159cff, #74d8ff);
+}
+
+#energyFill {
+    background: linear-gradient(90deg, #b726ff, #ff9cff);
+}
+
+#bossUI {
+    display: none;
+    margin: 12px auto;
+    max-width: 560px;
+    text-align: center;
+}
+
+#bossFill {
+    background: linear-gradient(90deg, #ff9e00, #ff2211);
+}
+
+#message {
+    position: fixed;
+    top: 42%;
+    width: 100%;
+    z-index: 6;
+    text-align: center;
+    font-size: clamp(24px, 5vw, 52px);
+    font-weight: bold;
+    color: #ffd35a;
+    text-shadow: 4px 4px #000;
+    pointer-events: none;
+}
+
+#help {
+    position: fixed;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 5;
+    color: #ddd;
+    text-align: center;
+    font-size: 13px;
+    text-shadow: 2px 2px #000;
+}
+
+#controls-info {
+    position: fixed;
+    bottom: 12px;
+    right: 12px;
+    z-index: 5;
+    background: rgba(32, 40, 77, 0.85);
+    border: 2px solid #559cff;
+    border-radius: 8px;
+    padding: 12px 16px;
+    color: #ddd;
+    font-size: 12px;
+    text-shadow: 1px 1px #000;
+    max-width: 280px;
+    line-height: 1.5;
+    cursor: help;
+}
+
+#controls-info h4 {
+    margin: 0 0 8px 0;
+    color: #74d8ff;
+    font-size: 13px;
+    text-transform: uppercase;
+}
+
+#controls-info ul {
+    margin: 0;
+    padding: 0 0 0 18px;
+}
+
+#controls-info li {
+    margin: 4px 0;
+    list-style: disc;
+}
+
+#controls-info .key {
+    color: #ffd35a;
+    font-weight: bold;
+}
+
+#controls-info.minimized {
+    padding: 8px 12px;
+}
+
+#controls-info.minimized ul,
+#controls-info.minimized h4 {
+    display: none;
+}
+
+#controls-info.minimized::after {
+    content: "? Controls";
+    color: #74d8ff;
+}
+
+#touch {
+    position: fixed;
+    bottom: 35px;
+    left: 0;
+    right: 0;
+    z-index: 10;
+    display: flex;
+    justify-content: space-around;
+    pointer-events: none;
+}
+
+.touchGroup {
+    display: flex;
+    gap: 8px;
+    pointer-events: auto;
+}
+
+button {
+    border: 2px solid #fff;
+    border-radius: 12px;
+    color: #fff;
+    background: #20284ddd;
+    min-width: 58px;
+    min-height: 52px;
+    font-weight: bold;
+    font-size: 14px;
+    touch-action: manipulation;
+}
+
+button:active {
+    background: #a42cff;
+    transform: scale(.94);
+}
+
+@media (min-width: 800px) {
+    #touch {
+        display: none;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<canvas id="game"></canvas>
+
+<div id="hud">
+    <div class="row">
+        <div class="stat">
+            <b>HEALTH</b>
+            <div class="bar"><div id="healthFill" class="fill"></div></div>
+        </div>
+
+        <div class="stat">
+            <b>STAMINA</b>
+            <div class="bar"><div id="staminaFill" class="fill"></div></div>
+        </div>
+
+        <div class="stat">
+            <b>ENERGY</b>
+            <div class="bar"><div id="energyFill" class="fill"></div></div>
+        </div>
+
+        <div>
+            Level <b id="level">1</b>
+            &nbsp; XP <b id="xp">0</b>
+            &nbsp; Coins <b id="coins">0</b>
+        </div>
+    </div>
+
+    <div id="bossUI">
+        <b id="bossName">THE BRONZE COLOSSUS</b>
+        <div class="bar">
+            <div id="bossFill" class="fill"></div>
+        </div>
+        <small>Phase <span id="bossPhase">1</span></small>
+    </div>
+</div>
+
+<div id="message"></div>
+
+<div id="help">
+    A/D or Arrow Keys: Move · Space: Jump · E: Attack · Q: Dodge · R: Restart
+</div>
+
+<div id="controls-info">
+    <h4>⚔ Controls</h4>
+    <ul>
+        <li><span class="key">A / ◀</span> or <span class="key">← Arrow</span> – Move left</li>
+        <li><span class="key">D / ▶</span> or <span class="key">→ Arrow</span> – Move right</li>
+        <li><span class="key">Space / JUMP</span> – Jump (double-tap to double-jump)</li>
+        <li><span class="key">E / ATTACK</span> – Attack enemy (costs stamina)</li>
+        <li><span class="key">Q / DODGE</span> – Dodge incoming attacks (costs energy)</li>
+        <li><span class="key">R</span> – Restart after game over</li>
+    </ul>
+</div>
+
+<div id="touch">
+    <div class="touchGroup">
+        <button data-action="left">◀</button>
+        <button data-action="right">▶</button>
+    </div>
+
+    <div class="touchGroup">
+        <button data-action="jump">JUMP</button>
+        <button data-action="attack">ATTACK</button>
+        <button data-action="dodge">DODGE</button>
+    </div>
+</div>
+
+<script>
+"use strict";
+
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+let W = 960;
+let H = 540;
+let scale = 1;
+
+function resize() {
+    W = Math.min(window.innerWidth, 1100);
+    H = Math.min(window.innerHeight, 700);
+
+    canvas.width = W;
+    canvas.height = H;
+    scale = W / 960;
+}
+
+window.addEventListener("resize", resize);
+resize();
+
+const ui = {
+    health: document.getElementById("healthFill"),
+    stamina: document.getElementById("staminaFill"),
+    energy: document.getElementById("energyFill"),
+    boss: document.getElementById("bossUI"),
+    bossFill: document.getElementById("bossFill"),
+    bossPhase: document.getElementById("bossPhase"),
+    level: document.getElementById("level"),
+    xp: document.getElementById("xp"),
+    coins: document.getElementById("coins"),
+    message: document.getElementById("message")
+};
+
+const saved = JSON.parse(localStorage.getItem("chronoVanguardSave") || "{}");
+
+const game = {
+    mode: "runner",
+    over: false,
+    distance: saved.distance || 0,
+    score: saved.score || 0,
+    highScore: saved.highScore || 0,
+    coins: saved.coins || 0,
+    level: saved.level || 1,
+    xp: saved.xp || 0,
+    xpNext: saved.xpNext || 100,
+    loot: saved.loot || [],
+    era: "BRONZE AGE",
+    spawnTimer: 0,
+    obstacleTimer: 0,
+    bossTriggered: false,
+    messageTimer: 0,
+    shake: 0
+};
+
+const player = {
+    lane: 1,
+    x: 0,
+    y: 0,
+    vy: 0,
+    health: 100,
+    maxHealth: 100,
+    stamina: 100,
+    maxStamina: 100,
+    energy: 0,
+    maxEnergy: 100,
+    speed: 8,
+    jumping: false,
+    dodging: false,
+    dodgeTimer: 0,
+    attackTimer: 0,
+    attackCooldown: 0,
+    invulnerable: 0,
+    attackDamage: 24
+};
+
+const enemies = [];
+const obstacles = [];
+const particles = [];
+const projectiles = [];
+
+const boss = {
+    active: false,
+    health: 500,
+    maxHealth: 500,
+    phase: 1,
+    attackTimer: 1.5,
+    hitFlash: 0
+};
+
+const keys = {};
+
+window.addEventListener("keydown", e => {
+    keys[e.key.toLowerCase()] = true;
+
+    if (e.key === "ArrowLeft" || e.key.toLowerCase() === "a") moveLeft();
+    if (e.key === "ArrowRight" || e.key.toLowerCase() === "d") moveRight();
+    if (e.key === " ") jump();
+    if (e.key.toLowerCase() === "e") attack();
+    if (e.key.toLowerCase() === "q") dodge();
+    if (e.key.toLowerCase() === "r" && game.over) restart();
+
+    e.preventDefault();
+});
+
+window.addEventListener("keyup", e => {
+    keys[e.key.toLowerCase()] = false;
+});
+
+document.querySelectorAll("button").forEach(button => {
+    const action = button.dataset.action;
+
+    button.addEventListener("touchstart", e => {
+        e.preventDefault();
+        performAction(action);
+    }, { passive: false });
+
+    button.addEventListener("mousedown", e => {
+        e.preventDefault();
+        performAction(action);
+    });
+});
+
+function performAction(action) {
+    if (action === "left") moveLeft();
+    if (action === "right") moveRight();
+    if (action === "jump") jump();
+    if (action === "attack") attack();
+    if (action === "dodge") dodge();
+}
+
+function moveLeft() {
+    if (game.over || game.mode === "boss") return;
+    player.lane = Math.max(0, player.lane - 1);
+}
+
+function moveRight() {
+    if (game.over || game.mode === "boss") return;
+    player.lane = Math.min(2, player.lane + 1);
+}
+
+function jump() {
+    if (game.over || game.mode === "boss") return;
+
+    if (!player.jumping) {
+        player.jumping = true;
+        player.vy = 650;
+    }
+}
+
+function dodge() {
+    if (game.over || player.dodging) return;
+
+    if (player.stamina >= 25) {
+        player.stamina -= 25;
+        player.dodging = true;
+        player.dodgeTimer = .32;
+        player.invulnerable = .38;
+        burst(player.x, player.y, "#68d9ff", 12);
+    }
+}
+
+function attack() {
+    if (game.over || player.attackCooldown > 0) return;
+
+    if (player.stamina < 18) return;
+
+    player.stamina -= 18;
+    player.attackCooldown = .38;
+    player.attackTimer = .16;
+
+    burst(player.x + 30, player.y, "#ffd45a", 8);
+
+    if (game.mode === "boss") {
+        const distanceToBoss = Math.abs(player.x - 0);
+
+        if (distanceToBoss < 230) {
+            damageBoss(player.attackDamage + player.energy * .15);
+        }
+
+        return;
+    }
+
+    for (let i = enemies.length - 1; i >= 0; i--) {
+        const enemy = enemies[i];
+
+        if (
+            enemy.lane === player.lane &&
+            enemy.y > H - 260 &&
+            Math.abs(enemy.y - player.y) < 90
+        ) {
+            enemy.health -= player.attackDamage;
+            enemy.hit = .12;
+            player.energy = Math.min(player.maxEnergy, player.energy + 12);
+
+            if (enemy.health <= 0) {
+                enemies.splice(i, 1);
+                game.coins += 5;
+                gainXP(20);
+                burst(enemy.x, enemy.y, "#ffb52e", 18);
+            }
+        }
+    }
+}
+
+function useSpecial() {
+    if (player.energy < 100 || game.over) return;
+
+    player.energy = 0;
+    burst(player.x, player.y, "#d661ff", 40);
+
+    if (game.mode === "boss") {
+        damageBoss(100);
+    } else {
+        for (let i = enemies.length - 1; i >= 0; i--) {
+            enemies.splice(i, 1);
+            game.coins += 3;
+            gainXP(10);
+        }
+    }
+}
+
+function damageBoss(amount) {
+    if (!boss.active) return;
+
+    boss.health -= amount;
+    boss.hitFlash = .15;
+    game.shake = .15;
+    burst(W / 2, 150, "#fff", 15);
+
+    if (boss.health <= 0) {
+        boss.health = 0;
+        boss.active = false;
+        game.mode = "runner";
+        gainXP(500);
+        game.coins += 250;
+        grantLoot();
+        showMessage("BOSS DEFEATED — RELIC ACQUIRED", 3);
+        ui.boss.style.display = "none";
+    }
+}
+
+function startBoss() {
+    game.mode = "boss";
+    boss.active = true;
+    boss.health = boss.maxHealth;
+    boss.phase = 1;
+    boss.attackTimer = 1.5;
+    ui.boss.style.display = "block";
+    showMessage("THE BRONZE COLOSSUS", 2);
+}
+
+function updateBoss(dt) {
+    if (!boss.active) return;
+
+    const healthRatio = boss.health / boss.maxHealth;
+
+    if (healthRatio <= .6) boss.phase = 2;
+    if (healthRatio <= .3) boss.phase = 3;
+
+    boss.attackTimer -= dt;
+    boss.hitFlash -= dt;
+
+    if (boss.attackTimer <= 0) {
+        boss.attackTimer = Math.max(.55, 1.35 - boss.phase * .2);
+
+        if (Math.random() < .55) {
+            projectiles.push({
+                x: W / 2 + (Math.random() - .5) * 260,
+                y: 145,
+                vy: 280 + boss.phase * 70,
+                radius: 15,
+                damage: 12 + boss.phase * 5
+            });
+        } else {
+            for (let i = 0; i < boss.phase; i++) {
+                obstacles.push({
+                    lane: Math.floor(Math.random() * 3),
+                    y: 80 - i * 100,
+                    speed: 180,
+                    size: 60,
+                    bossHazard: true
+                });
+            }
+        }
+    }
+
+    if (boss.phase === 3 && Math.random() < .01) {
+        player.invulnerable = 0;
+        player.health -= 3;
+        game.shake = .1;
+    }
+
+    ui.bossFill.style.width = `${(boss.health / boss.maxHealth) * 100}%`;
+    ui.bossPhase.textContent = boss.phase;
+}
+
+function spawnRunnerObjects(dt) {
+    game.spawnTimer -= dt;
+    game.obstacleTimer -= dt;
+
+    if (game.spawnTimer <= 0) {
+        game.spawnTimer = Math.max(.42, .95 - game.distance / 10000);
+
+        const lane = Math.floor(Math.random() * 3);
+
+        if (Math.random() < .55) {
+            enemies.push({
+                lane,
+                y: -60,
+                health: 45 + game.level * 4,
+                maxHealth: 45 + game.level * 4,
+                speed: 180 + game.distance * .012,
+                hit: 0,
+                type: Math.random() < .5 ? "guard" : "raider"
+            });
+        } else {
+            game.coins += 1;
+            particles.push({
+                x: laneX(lane),
+                y: -30,
+                coin: true,
+                vy: 190,
+                life: 5
+            });
+        }
+    }
+
+    if (game.obstacleTimer <= 0) {
+        game.obstacleTimer = 1.2;
+
+        obstacles.push({
+            lane: Math.floor(Math.random() * 3),
+            y: -80,
+            size: 60,
+            speed: 210 + game.distance * .01
+        });
+    }
+}
+
+function updateRunner(dt) {
+    game.distance += player.speed * dt;
+    game.score += Math.floor(player.speed * dt);
+
+    if (game.distance >= 1500 && !game.bossTriggered) {
+        game.bossTriggered = true;
+        startBoss();
+        return;
+    }
+
+    spawnRunnerObjects(dt);
+
+    for (let i = enemies.length - 1; i >= 0; i--) {
+        const enemy = enemies[i];
+        enemy.y += enemy.speed * dt;
+        enemy.hit -= dt;
+
+        if (enemy.y > H + 80) {
+            enemies.splice(i, 1);
+            continue;
+        }
+
+        if (
+            enemy.lane === player.lane &&
+            enemy.y > H - 170 &&
+            enemy.y < H - 70 &&
+            !player.jumping &&
+            player.invulnerable <= 0
+        ) {
+            hurt(12);
+            enemies.splice(i, 1);
+        }
+    }
+
+    for (let i = obstacles.length - 1; i >= 0; i--) {
+        const obstacle = obstacles[i];
+        obstacle.y += obstacle.speed * dt;
+
+        if (obstacle.y > H + 100) {
+            obstacles.splice(i, 1);
+            continue;
+        }
+
+        if (
+            obstacle.lane === player.lane &&
+            obstacle.y > H - 150 &&
+            obstacle.y < H - 55 &&
+            !player.jumping &&
+            player.invulnerable <= 0
+        ) {
+            hurt(20);
+            obstacles.splice(i, 1);
+        }
+    }
+}
+
+function updatePlayer(dt) {
+    const targetX = laneX(player.lane);
+    player.x += (targetX - player.x) * Math.min(1, dt * 12);
+
+    player.stamina = Math.min(
+        player.maxStamina,
+        player.stamina + 25 * dt
+    );
+
+    player.attackCooldown = Math.max(0, player.attackCooldown - dt);
+    player.attackTimer = Math.max(0, player.attackTimer - dt);
+    player.invulnerable = Math.max(0, player.invulnerable - dt);
+
+    if (player.dodging) {
+        player.dodgeTimer -= dt;
+
+        if (player.dodgeTimer <= 0)
+            player.dodging = false;
+    }
+
+    if (player.jumping) {
+        player.y += player.vy * dt;
+        player.vy -= 1500 * dt;
+
+        if (player.y <= 0) {
+            player.y = 0;
+            player.vy = 0;
+            player.jumping = false;
+        }
+    }
+}
+
+function updateProjectiles(dt) {
+    for (let i = projectiles.length - 1; i >= 0; i--) {
+        const p = projectiles[i];
+        p.y += p.vy * dt;
+
+        const playerScreenY = H - 115 - player.y;
+
+        if (
+            Math.abs(p.x - (W / 2 + player.x * .2)) < 55 &&
+            Math.abs(p.y - playerScreenY) < 55 &&
+            player.invulnerable <= 0
+        ) {
+            hurt(p.damage);
+            projectiles.splice(i, 1);
+            continue;
+        }
+
+        if (p.y > H + 60)
+            projectiles.splice(i, 1);
+    }
+}
+
+function updateParticles(dt) {
+    for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+
+        if (!p.coin) {
+            p.x += p.vx * dt;
+            p.y += p.vy * dt;
+            p.life -= dt;
+        } else {
+            p.y += p.vy * dt;
+            p.life -= dt;
+
+            if (
+                p.y > H - 190 &&
+                Math.abs(p.x - (W / 2 + player.x)) < 55
+            ) {
+                game.coins++;
+                gainXP(3);
+                p.life = 0;
+            }
+        }
+
+        if (p.life <= 0)
+            particles.splice(i, 1);
+    }
+}
+
+function hurt(amount) {
+    if (player.invulnerable > 0 || player.dodging) return;
+
+    player.health -= amount;
+    player.invulnerable = .8;
+    game.shake = .2;
+    burst(player.x, H - 120, "#ff3030", 15);
+
+    if (player.health <= 0)
+        gameOver();
+}
+
+function gainXP(amount) {
+    game.xp += amount;
+
+    while (game.xp >= game.xpNext) {
+        game.xp -= game.xpNext;
+        game.level++;
+        game.xpNext = Math.floor(game.xpNext * 1.3);
+
+        player.maxHealth += 12;
+        player.health = player.maxHealth;
+        player.attackDamage += 4;
+        player.maxStamina += 5;
+        player.stamina = player.maxStamina;
+
+        showMessage("LEVEL UP!", 1.5);
+    }
+}
+
+function grantLoot() {
+    const items = [
+        "Sunforged Gauntlets",
+        "Bronze Guardian Cape",
+        "Chrono Shield",
+        "Jade Phoenix Relic",
+        "Vanguard Boots",
+        "Spear of the First Dawn"
+    ];
+
+    const item = items[Math.floor(Math.random() * items.length)];
+    game.loot.push(item);
+
+    if (game.loot.length > 8)
+        game.loot.shift();
+
+    showMessage("LOOT: " + item, 3);
+}
+
+function gameOver() {
+    game.over = true;
+    game.mode = "gameover";
+
+    game.highScore = Math.max(game.highScore, game.score);
+
+    saveGame();
+
+    showMessage(
+        `DEFEATED<br><small>Score: ${game.score} · Press R to restart</small>`,
+        999
+    );
+}
+
+function restart() {
+    localStorage.removeItem("chronoVanguardSave");
+    location.reload();
+}
+
+function saveGame() {
+    localStorage.setItem("chronoVanguardSave", JSON.stringify({
+        distance: game.distance,
+        score: game.score,
+        highScore: game.highScore,
+        coins: game.coins,
+        level: game.level,
+        xp: game.xp,
+        xpNext: game.xpNext,
+        loot: game.loot
+    }));
+}
+
+function showMessage(text, seconds) {
+    ui.message.innerHTML = text;
+    game.messageTimer = seconds;
+}
+
+function laneX(lane) {
+    return (lane - 1) * 180;
+}
+
+function burst(x, y, color, amount) {
+    for (let i = 0; i < amount; i++) {
+        particles.push({
+            x,
+            y,
+            vx: (Math.random() - .5) * 280,
+            vy: (Math.random() - .5) * 280,
+            color,
+            life: .35 + Math.random() * .5
+        });
+    }
+}
+
+function update(dt) {
+    if (game.over) return;
+
+    updatePlayer(dt);
+
+    if (game.mode === "runner") {
+        updateRunner(dt);
+    } else if (game.mode === "boss") {
+        updateBoss(dt);
+    }
+
+    updateProjectiles(dt);
+    updateParticles(dt);
+
+    game.messageTimer -= dt;
+
+    if (game.messageTimer <= 0)
+        ui.message.innerHTML = "";
+
+    if (game.shake > 0)
+        game.shake -= dt;
+
+    ui.health.style.width =
+        `${Math.max(0, player.health / player.maxHealth * 100)}%`;
+
+    ui.stamina.style.width =
+        `${player.stamina / player.maxStamina * 100}%`;
+
+    ui.energy.style.width =
+        `${player.energy / player.maxEnergy * 100}%`;
+
+    ui.level.textContent = game.level;
+    ui.xp.textContent = `${game.xp}/${game.xpNext}`;
+    ui.coins.textContent = game.coins;
+}
+
+function drawBackground() {
+    const gradient = ctx.createLinearGradient(0, 0, 0, H);
+    gradient.addColorStop(0, "#192b50");
+    gradient.addColorStop(.55, "#bd7042");
+    gradient.addColorStop(1, "#301d25");
+
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.fillStyle = "#6a443b";
+
+    for (let i = 0; i < 12; i++) {
+        const x = i * W / 12;
+        const height = 75 + (i % 4) * 26;
+
+        ctx.fillRect(x, H - 250 - height, W / 14, height);
+        ctx.fillStyle = "#d5a447";
+        ctx.fillRect(x + 10, H - 230 - height, 12, 18);
+        ctx.fillStyle = "#6a443b";
+    }
+
+    ctx.fillStyle = "#392c2c";
+    ctx.fillRect(0, H - 210, W, 210);
+
+    for (let lane = 0; lane < 3; lane++) {
+        const x = W / 2 + laneX(lane);
+
+        ctx.fillStyle = "#4d3c3b";
+        ctx.fillRect(x - 75, H - 210, 150, 210);
+
+        ctx.strokeStyle = "#8a6d55";
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(x - 75, H - 210);
+        ctx.lineTo(x - 75, H);
+        ctx.moveTo(x + 75, H - 210);
+        ctx.lineTo(x + 75, H);
+        ctx.stroke();
+    }
+
+    ctx.fillStyle = "#f2c15b";
+    ctx.font = "bold 22px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText(game.mode === "boss" ? "BRONZE COLOSSUS ARENA" : game.era, W / 2, 70);
+}
+
+function drawPlayer() {
+    const x = W / 2 + player.x;
+    const y = H - 115 - player.y;
+
+    ctx.save();
+
+    if (player.invulnerable > 0)
+        ctx.globalAlpha = .55;
+
+    ctx.translate(x, y);
+
+    if (player.dodging)
+        ctx.rotate(-.35);
+
+    ctx.fillStyle = "#24165c";
+    ctx.fillRect(-22, 0, 44, 70);
+
+    ctx.fillStyle = "#e0b18b";
+    ctx.beginPath();
+    ctx.arc(0, -18, 23, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = "#ffd447";
+    ctx.beginPath();
+    ctx.moveTo(-22, -27);
+    ctx.lineTo(0, -52);
+    ctx.lineTo(22, -27);
+    ctx.fill();
+
+    ctx.fillStyle = "#e72f49";
+    ctx.beginPath();
+    ctx.moveTo(-22, 8);
+    ctx.lineTo(-65, 32);
+    ctx.lineTo(-20, 38);
+    ctx.fill();
+
+    ctx.fillStyle = "#6b35ff";
+    ctx.fillRect(-34, 65, 24, 12);
+    ctx.fillRect(10, 65, 24, 12);
+
+    if (player.attackTimer > 0) {
+        ctx.strokeStyle = "#ffe676";
+        ctx.lineWidth = 10;
+        ctx.beginPath();
+        ctx.arc(30, 10, 54, -.8, .8);
+        ctx.stroke();
+    }
+
+    ctx.restore();
+}
+
+function drawEnemies() {
+    for (const enemy of enemies) {
+        const x = W / 2 + laneX(enemy.lane);
+        const y = enemy.y;
+
+        ctx.save();
+        ctx.translate(x, y);
+
+        ctx.fillStyle = enemy.type === "guard" ? "#bdc4d1" : "#682f30";
+        ctx.fillRect(-25, 0, 50, 70);
+
+        ctx.fillStyle = "#d49b77";
+        ctx.beginPath();
+        ctx.arc(0, -15, 20, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = "#222";
+        ctx.fillRect(-28, -28, 56, 10);
+
+        ctx.fillStyle = "#e33";
+        ctx.fillRect(-28, -45, 56 * (enemy.health / enemy.maxHealth), 5);
+
+        if (enemy.hit > 0)
+            ctx.globalAlpha = .4;
+
+        ctx.restore();
+    }
+}
+
+function drawObstacles() {
+    for (const obstacle of obstacles) {
+        const x = W / 2 + laneX(obstacle.lane);
+
+        ctx.fillStyle = obstacle.bossHazard ? "#ff391d" : "#8d5a2c";
+        ctx.fillRect(
+            x - obstacle.size / 2,
+            obstacle.y,
+            obstacle.size,
+            obstacle.size
+        );
+
+        ctx.fillStyle = "#ffc15a";
+        ctx.fillRect(
+            x - obstacle.size / 2 + 8,
+            obstacle.y + 8,
+            obstacle.size - 16,
+            8
+        );
+    }
+}
+
+function drawBoss() {
+    if (!boss.active) return;
+
+    const x = W / 2;
+    const y = 145;
+
+    ctx.save();
+    ctx.translate(x, y);
+
+    if (boss.hitFlash > 0)
+        ctx.globalAlpha = .45;
+
+    const size = 100 + boss.phase * 12;
+
+    ctx.fillStyle = boss.phase === 3 ? "#ff621e" : "#b57638";
+    ctx.fillRect(-size / 2, 0, size, 150);
+
+    ctx.fillStyle = "#ffd25a";
+    ctx.beginPath();
+    ctx.arc(0, -20, 48, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = "#3c251c";
+    ctx.fillRect(-63, -30, 126, 16);
+
+    ctx.fillStyle = "#fff26b";
+    ctx.beginPath();
+    ctx.arc(0, 48, 28, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+}
+
+function drawProjectiles() {
+    for (const p of projectiles) {
+        ctx.fillStyle = "#ffbf45";
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+        ctx.fill();
+    }
+}
+
+function drawParticles() {
+    for (const p of particles) {
+        ctx.globalAlpha = Math.max(0, p.life);
+        ctx.fillStyle = p.color || "#ffd447";
+
+        if (p.coin) {
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, 11, 0, Math.PI * 2);
+            ctx.fill();
+        } else {
+            ctx.fillRect(p.x, p.y, 6, 6);
+        }
+    }
+
+    ctx.globalAlpha = 1;
+}
+
+function draw() {
+    ctx.save();
+
+    if (game.shake > 0) {
+        ctx.translate(
+            (Math.random() - .5) * 12,
+            (Math.random() - .5) * 12
+        );
+    }
+
+    drawBackground();
+
+    if (game.mode === "runner") {
+        drawEnemies();
+        drawObstacles();
+    }
+
+    if (game.mode === "boss") {
+        drawBoss();
+        drawObstacles();
+        drawProjectiles();
+    }
+
+    drawParticles();
+    drawPlayer();
+
+    ctx.restore();
+}
+
+let lastTime = performance.now();
+
+function loop(now) {
+    const dt = Math.min(.033, (now - lastTime) / 1000);
+    lastTime = now;
+
+    update(dt);
+    draw();
+
+    requestAnimationFrame(loop);
+}
+
+requestAnimationFrame(loop);
+
+setInterval(saveGame, 10000);
+setInterval(() => {
+    if (!game.over && player.energy >= 100)
+        showMessage("SPECIAL READY — PRESS X", .7);
+}, 3000);
+
+window.addEventListener("keydown", e => {
+    if (e.key.toLowerCase() === "x")
+        useSpecial();
+});
+
+showMessage("CHRONO VANGUARD", 2);
+
+// Controls info interactivity
+const controlsInfo = document.getElementById("controls-info");
+if (controlsInfo) {
+    controlsInfo.addEventListener("click", () => {
+        controlsInfo.classList.toggle("minimized");
+    });
+}
+</script>
+
+</body>
+</html>
