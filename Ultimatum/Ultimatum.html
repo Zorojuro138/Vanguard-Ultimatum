@@ -245,7 +245,7 @@ button:active {
 <div id="message"></div>
 
 <div id="help">
-    A/D or Arrow Keys: Move · Space: Jump · J: Attack · K: Dodge · R: Restart
+    A/D or Arrow Keys: Move · Space: Jump · E: Attack · Q: Dodge · R: Restart
 </div>
 
 <div id="controls-info">
@@ -254,8 +254,8 @@ button:active {
         <li><span class="key">A / ◀</span> or <span class="key">← Arrow</span> – Move left</li>
         <li><span class="key">D / ▶</span> or <span class="key">→ Arrow</span> – Move right</li>
         <li><span class="key">Space / JUMP</span> – Jump (double-tap to double-jump)</li>
-        <li><span class="key">J / ATTACK</span> – Attack enemy (costs stamina)</li>
-        <li><span class="key">K / DODGE</span> – Dodge incoming attacks (costs energy)</li>
+        <li><span class="key">E / ATTACK</span> – Attack enemy (costs stamina)</li>
+        <li><span class="key">Q / DODGE</span> – Dodge incoming attacks (costs energy)</li>
         <li><span class="key">R</span> – Restart after game over</li>
     </ul>
 </div>
@@ -372,8 +372,8 @@ window.addEventListener("keydown", e => {
     if (e.key === "ArrowLeft" || e.key.toLowerCase() === "a") moveLeft();
     if (e.key === "ArrowRight" || e.key.toLowerCase() === "d") moveRight();
     if (e.key === " ") jump();
-    if (e.key.toLowerCase() === "j") attack();
-    if (e.key.toLowerCase() === "k") dodge();
+    if (e.key.toLowerCase() === "e") attack();
+    if (e.key.toLowerCase() === "q") dodge();
     if (e.key.toLowerCase() === "r" && game.over) restart();
 
     e.preventDefault();
@@ -1143,11 +1143,11 @@ requestAnimationFrame(loop);
 setInterval(saveGame, 10000);
 setInterval(() => {
     if (!game.over && player.energy >= 100)
-        showMessage("SPECIAL READY — PRESS E", .7);
+        showMessage("SPECIAL READY — PRESS X", .7);
 }, 3000);
 
 window.addEventListener("keydown", e => {
-    if (e.key.toLowerCase() === "e")
+    if (e.key.toLowerCase() === "x")
         useSpecial();
 });
 
